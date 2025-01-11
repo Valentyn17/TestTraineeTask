@@ -1,0 +1,116 @@
+﻿@model IEnumerable<TestTask.Models.Contact>
+
+@{
+    ViewData["Title"] = "Contact Manager Application";
+}
+
+<h1>Contact Manager Application</h1>
+
+<p>
+    <a asp-action="Create">Create New Contact</a>
+    <form id="uploadForm" enctype="multipart/form-data" method="post" action="@Url.Action("Upload", "Contacts")" style="display:inline-block; margin-left: 15px;">
+        <label for="csvFile" class="btn btn-secondary">
+            <i class="fa fa-download"></i> Upload CSV
+        </label>
+        <input type="file" id="csvFile" name="csvFile" accept=".csv" style="display:none;" />
+    </form>
+</p>
+
+<table class="table" id="contactsTable">
+    <thead>
+        <tr>
+            <th>Name <i onclick="sortTable(0)" class="fa fa-fw fa-sort"></i></th>
+            <th>Date of Birth <i onclick="sortTable(1)" class="fa fa-fw fa-sort"></i></th>
+            <th>Married <i onclick="sortTable(2)" class="fa fa-fw fa-sort"></i></th>
+            <th>Phone <i onclick="sortTable(3)" class="fa fa-fw fa-sort"></i></th>
+            <th>Salary <i onclick="sortTable(4)" class="fa fa-fw fa-sort"></i></th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                <td>@Html.DisplayFor(modelItem => item.DateOfBirth)</td>
+                <td><input type="checkbox" disabled @(item.Married ? "checked" : "") /></td>
+                <td>@Html.DisplayFor(modelItem => item.Phone)</td>
+                <td>@Html.DisplayFor(modelItem => item.Salary)</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-link text-primary">
+                        <i class="fa fa-edit"></i>
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-danger">
+                        <i class="fa fa-trash"></i>
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+<script>
+    function sortTable(columnIndex) {
+        const table = document.getElementById("contactsTable");
+        const tbody = table.tBodies[0];
+        const rows = Array.from(tbody.rows);
+
+        let ascending = table.dataset.sortOrder === "asc";
+        table.dataset.sortOrder = ascending ? "desc" : "asc";
+
+        rows.sort((rowA, rowB) => {
+            let cellA = rowA.cells[columnIndex].innerText.trim();
+            let cellB = rowB.cells[columnIndex].innerText.trim();
+
+            if (columnIndex === 1) { // Date 
+                return ascending
+                    ? new Date(cellA) - new Date(cellB)
+                    : new Date(cellB) - new Date(cellA);
+            } else if (columnIndex === 4) { // Salary decimal
+                return ascending
+                    ? parseFloat(cellA) - parseFloat(cellB)
+                    : parseFloat(cellB) - parseFloat(cellA);
+            } else if (columnIndex === 2) { // Married column (checkbox)
+            
+                const checkboxA = rowA.cells[columnIndex].querySelector('input[type="checkbox"]');
+                const checkboxB = rowB.cells[columnIndex].querySelector('input[type="checkbox"]');
+
+                cellA = checkboxA ? checkboxA.checked : false;
+                cellB = checkboxB ? checkboxB.checked : false;
+
+                return ascending ? cellA - cellB : cellB - cellA;
+            } else { // text 
+                return ascending
+                    ? cellA.localeCompare(cellB)
+                    : cellB.localeCompare(cellA);
+            }
+        });
+
+        // Reorder the rows in the table
+        tbody.append(...rows);
+    }
+
+    document.getElementById('csvFile').addEventListener('change', function() {
+    if (this.files.length > 0) {
+            document.getElementById('uploadForm').submit();
+    }
+    });
+</script>
+
+<style>
+    th {
+        cursor: pointer;
+    }
+
+    .sort-icon {
+        font-size: 12px;
+        margin-left: 5px;
+        color: gray;
+    }
+
+    .btn-secondary {
+        cursor: pointer;
+    }
+</style>
