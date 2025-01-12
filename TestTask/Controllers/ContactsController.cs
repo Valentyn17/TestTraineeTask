@@ -71,37 +71,40 @@ namespace TestTask.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Contact contact)
         {
-
             if (ModelState.IsValid)
             {
                 try
                 {
                     _contactRepository.Update(contact);
                     await _contactRepository.SaveChangesAsync();
+                    TempData["Success"] = "Contact updated successfully.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    return BadRequest();
+                    TempData["Error"] = "An error occurred while updating the contact.";
+                    return RedirectToAction(nameof(Index));
                 }
 
                 return RedirectToAction(nameof(Index));
             }
 
-            return View(contact);
+            TempData["Error"] = "Invalid data. Please check your input.";
+            return RedirectToAction(nameof(Index));
         }
+
 
         // GET: Contacts/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
             {
-                return NotFound();
+                return View("Error", "There is no contact with such id.");
             }
 
             var contact = await _contactRepository.GetByIdAsync(id.Value);
             if (contact == null)
             {
-                return NotFound();
+                return View("Error", "There is no contact with such id.");
             }
 
             return View(contact);
@@ -124,7 +127,10 @@ namespace TestTask.Controllers
             try
             {
                 if (csvFile == null || csvFile.Length == 0)
-                    return BadRequest("No file uploaded.");
+                {
+                    TempData["Error"] = "No file uploaded.";
+                    return RedirectToAction(nameof(Index));
+                }
 
                 using (var reader = new StreamReader(csvFile.OpenReadStream()))
                 {
@@ -133,39 +139,38 @@ namespace TestTask.Controllers
                     // Read and skip the header line
                     string headerLine = await reader.ReadLineAsync();
                     if (headerLine == null)
-                        return BadRequest("CSV file is empty.");
+                    {
+                        TempData["Error"] = "CSV file is empty.";
+                        return RedirectToAction(nameof(Index));
+                    }
 
                     // Validate headers
                     string[] expectedHeaders = { "Name", "DateOfBirth", "Married", "Phone", "Salary" };
                     string[] actualHeaders = headerLine.Split(',');
 
                     if (!expectedHeaders.SequenceEqual(actualHeaders))
-                        return BadRequest("CSV file headers do not match the expected format.");
+                    {
+                        TempData["Error"] = "CSV file headers do not match the expected format.";
+                        return RedirectToAction(nameof(Index));
+                    }
 
                     // Process data rows
                     while (!reader.EndOfStream)
                     {
-                        try
-                        {
-                            string line = await reader.ReadLineAsync();
-                            if (string.IsNullOrEmpty(line)) continue;
+                        string line = await reader.ReadLineAsync();
+                        if (string.IsNullOrEmpty(line)) continue;
 
-                            var values = line.Split(',');
-                            if (values.Length == expectedHeaders.Length)
-                            {
-                                contacts.Add(new Contact
-                                {
-                                    Name = values[0],
-                                    DateOfBirth = DateTime.Parse(values[1]),
-                                    Married = bool.Parse(values[2]),
-                                    Phone = values[3],
-                                    Salary = decimal.Parse(values[4])
-                                });
-                            }
-                        }
-                        catch (Exception ex)
+                        var values = line.Split(',');
+                        if (values.Length == expectedHeaders.Length)
                         {
-                            continue;
+                            contacts.Add(new Contact
+                            {
+                                Name = values[0],
+                                DateOfBirth = DateTime.Parse(values[1]),
+                                Married = bool.Parse(values[2]),
+                                Phone = values[3],
+                                Salary = decimal.Parse(values[4])
+                            });
                         }
                     }
 
@@ -177,17 +182,16 @@ namespace TestTask.Controllers
                     }
                     else
                     {
-                        TempData["Warning"] = "No valid contacts found in the CSV file.";
+                        TempData["Error"] = "No valid contacts found in the CSV file.";
                     }
                 }
-                return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
-                // Log the error
-                TempData["Error"] = "An error occurred while processing the CSV file.";
-                return RedirectToAction("Index");
+                TempData["Error"] = $"An error occurred while processing the CSV file. Details: {ex.Message}";
             }
+
+            return RedirectToAction(nameof(Index));
         }
 
     }
